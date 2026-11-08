@@ -3,12 +3,8 @@
 
 ### Android downloads / Descargas Android
 
-[Most Wanted v0.1.7](https://github.com/codepdbh/nfsmwpc-recompiled/releases/tag/v0.1.7)
-
-| APK | Architecture |
 |---|---|
-| [ARM64 / 64 bits](https://github.com/codepdbh/nfsmwpc-recompiled/releases/download/v0.1.7/NFSMWPC-AndroidEvolved-v0.1.7-arm64.apk) | arm64-v8a, recommended |
-| [ARMv7 / 32 bits](https://github.com/codepdbh/nfsmwpc-recompiled/releases/download/v0.1.7/NFSMWPC-AndroidEvolved-v0.1.7-armeabi-v7a.apk) | armeabi-v7a; requires Android with 32-bit app support |
+| [ARM64 / 64 bits](https://github.com/ArieSR91/nfsmwpc-port-mobile/releases/download/v0.1.13/app-debug.apk) | v0.1.13 |
 
 Android 10+ and Vulkan 1.1+. Both APKs use the same package and signing key;
 install the architecture supported by your device. Original game data is required.

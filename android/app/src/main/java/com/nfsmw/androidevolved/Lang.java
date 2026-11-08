@@ -223,6 +223,7 @@ final class Lang {
         add("GUARDAR", "SAVE", "SALVAR");
         add("CANCELAR", "CANCEL", "CANCELAR");
         add("Opciones de controles", "Control options", "Opções de controles");
+        add("Opacidad de los botones: %s%%", "Button opacity: %s%%", "Opacidade dos botões: %s%%");
         add("Estilo: clásico / Xbox / PlayStation", "Style: classic / Xbox / PlayStation", "Estilo: clássico / Xbox / PlayStation");
         add("Guardar layout con nombre", "Save layout with a name", "Salvar layout com nome");
         add("Cargar layout personalizado", "Load custom layout", "Carregar layout personalizado");

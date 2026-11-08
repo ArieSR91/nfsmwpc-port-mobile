@@ -5,6 +5,9 @@ import android.content.SharedPreferences;
 import android.app.AlertDialog;
 import android.widget.EditText;
 import android.widget.Toast;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import org.json.JSONObject;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -54,6 +57,9 @@ final class RacingControlsView extends View {
     private float dragX, dragY;
     private final SharedPreferences layouts;
     private float scale;
+    /** Opacity of every overlay button, 0.2 to 1.0; saved in the layouts preferences. */
+    private float opacity;
+    private final Paint layerPaint = new Paint();
     private static final int ACCENT = Color.rgb(255, 154, 50);
     private static final class Control {
         final RectF area;
@@ -70,7 +76,7 @@ final class RacingControlsView extends View {
     RacingControlsView(Context context, Keys keys, Runnable textInput, Runnable configureTilt, Runnable configureFrameLimit) {
         super(context); this.keys=keys; this.textInput=textInput;
         layouts=context.getSharedPreferences("touch_layouts_v1",Context.MODE_PRIVATE);
-        style=layouts.getString("style","classic");this.configureTilt=configureTilt;this.configureFrameLimit=configureFrameLimit;
+        style=layouts.getString("style","classic");opacity=Math.max(.2f,Math.min(1f,layouts.getFloat("opacity",1f)));this.configureTilt=configureTilt;this.configureFrameLimit=configureFrameLimit;
         setContentDescription(tr("Controles del juego"));
         setHapticFeedbackEnabled(true);
         line.setStyle(Paint.Style.STROKE);line.setStrokeCap(Paint.Cap.ROUND);line.setStrokeJoin(Paint.Join.ROUND);
@@ -81,6 +87,8 @@ final class RacingControlsView extends View {
         Control c=new Control(x,y,w,h,shape,icon,scan,color);
         // v2: icon layout; positions saved for the old captioned buttons do not apply.
         c.id="v2."+(racing?"race."+(style.equals("classic")?"":style+"."):"menu.")+scan;
+        // Two buttons may send the same key (Xbox/PS "Y" and Blacklist are both B): keep their saved positions apart.
+        for(Control other:controls)if(other.id.equals(c.id)){c.id+="."+icon;break;}
         float factor=layouts.getFloat(c.id+".size",1);
         float cx=layouts.getFloat(c.id+".x",c.area.centerX()/(getWidth()/scale))*(getWidth()/scale);
         float cy=layouts.getFloat(c.id+".y",c.area.centerY()/(getHeight()/scale))*(getHeight()/scale);
@@ -124,6 +132,8 @@ final class RacingControlsView extends View {
             add(72,16,46,"reset",0x13);   // Respot: R
             add(128,16,46,"map",0x32);    // World map: M
             add(184,16,46,"sms",0x0f);    // Text messages: Tab
+            add(240,16,46,"lookback",0x26);   // Look back: L
+            add(296,16,46,"blacklist",0x30);  // Blacklist: B
             if(style.equals("classic")) {
                 add(20,bottom-92,92,"left",0xcb);
                 add(124,bottom-92,92,"right",0xcd);
@@ -168,7 +178,12 @@ final class RacingControlsView extends View {
         if(hiddenByGamepad&&!editing)return;
         canvas.save(); canvas.scale(scale,scale);
         if(editing)canvas.drawColor(0x55000000);
+        // The whole overlay goes through one translucent layer so overlapping parts do not double up.
+        float w0=getWidth()/scale,h0=getHeight()/scale;
+        boolean fade=opacity<.999f;
+        if(fade){layerPaint.setAlpha(Math.round(opacity*255));canvas.saveLayer(0,0,w0,h0,layerPaint);}
         for(Control c:controls)drawControl(canvas,c);
+        if(fade)canvas.restore();
         if(editing) {
             float w=getWidth()/scale;
             drawToolbarButton(canvas,new RectF(w/2-250,18,w/2-150,58),tr("RESTABLECER"));
@@ -279,6 +294,15 @@ final class RacingControlsView extends View {
                 canvas.drawArc(cx-s*.75f,cy-s*.75f,cx+s*.75f,cy+s*.75f,-60,290,false,line);
                 path.reset();path.moveTo(cx+s*.2f,cy-s*.95f);path.lineTo(cx+s*.55f,cy-s*.62f);path.lineTo(cx+s*.08f,cy-s*.42f);
                 canvas.drawPath(path,line);break;
+            case "lookback":   // a rear-view mirror with a car silhouette
+                canvas.drawRoundRect(cx-s*.95f,cy-s*.6f,cx+s*.95f,cy+s*.55f,s*.35f,s*.35f,line);
+                canvas.drawRoundRect(cx-s*.5f,cy-s*.05f,cx+s*.5f,cy+s*.3f,s*.12f,s*.12f,fill);
+                path.reset();path.moveTo(cx-s*.32f,cy-s*.05f);path.lineTo(cx-s*.2f,cy-s*.3f);path.lineTo(cx+s*.2f,cy-s*.3f);path.lineTo(cx+s*.32f,cy-s*.05f);
+                canvas.drawPath(path,line);
+                canvas.drawLine(cx,cy+s*.55f,cx,cy+s*.85f,line);break;
+            case "blacklist":   // a ranked list: three bulleted rows
+                for(int i=-1;i<=1;++i){float y=cy+i*s*.62f;canvas.drawCircle(cx-s*.7f,y,s*.12f,fill);canvas.drawLine(cx-s*.35f,y,cx+s*.85f,y,line);}
+                break;
             case "back":
                 canvas.drawLine(cx-s*.5f,cy-s*.5f,cx+s*.5f,cy+s*.5f,line);canvas.drawLine(cx+s*.5f,cy-s*.5f,cx-s*.5f,cy+s*.5f,line);break;
             case "keyboard":
@@ -352,11 +376,42 @@ final class RacingControlsView extends View {
         invalidate();return true;
     }
     private void showOptions() {
-        new AlertDialog.Builder(getContext()).setTitle(tr("Opciones de controles"))
-                .setItems(Lang.t(getContext(),new String[]{"Estilo: clásico / Xbox / PlayStation","Conducción por inclinación","Límite de FPS","Guardar layout con nombre","Cargar layout personalizado"}),(dialog,which)->{
-                    if(which==0)chooseStyle();else if(which==1)configureTilt.run();
-                    else if(which==2)configureFrameLimit.run();else if(which==3)saveNamedLayout();else loadNamedLayout();
-                }).setNegativeButton(tr("Cerrar"),null).show();
+        Context context=getContext();
+        float density=context.getResources().getDisplayMetrics().density;
+        int pad=Math.round(20*density),row=Math.round(14*density);
+        LinearLayout form=new LinearLayout(context);form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(pad,Math.round(8*density),pad,0);
+        // Opacity slider for all overlay buttons: 20% to 100%, applied live behind the dialog.
+        TextView label=new TextView(context);label.setTextSize(15);
+        label.setText(tr("Opacidad de los botones: %s%%",Math.round(opacity*100)));form.addView(label);
+        SeekBar slider=new SeekBar(context);slider.setMax(80);slider.setProgress(Math.round(opacity*100)-20);form.addView(slider);
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {layouts.edit().putFloat("opacity",opacity).apply();}
+            @Override public void onProgressChanged(SeekBar bar,int progress,boolean user) {
+                opacity=(progress+20)/100f;label.setText(tr("Opacidad de los botones: %s%%",progress+20));invalidate();
+                if(!user)layouts.edit().putFloat("opacity",opacity).apply();
+            }
+        });
+        String[] names=Lang.t(context,new String[]{"Estilo: clásico / Xbox / PlayStation","Conducción por inclinación","Límite de FPS","Guardar layout con nombre","Cargar layout personalizado"});
+        AlertDialog.Builder builder=new AlertDialog.Builder(context).setTitle(tr("Opciones de controles")).setView(form)
+                .setNegativeButton(tr("Cerrar"),null);
+        AlertDialog dialog=builder.create();
+        for(int i=0;i<names.length;++i) {
+            final int which=i;
+            TextView item=new TextView(context);item.setText(names[i]);item.setTextSize(16);item.setPadding(0,row,0,row);
+            android.util.TypedValue background=new android.util.TypedValue();
+            if(context.getTheme().resolveAttribute(android.R.attr.selectableItemBackground,background,true))item.setBackgroundResource(background.resourceId);
+            item.setClickable(true);
+            item.setOnClickListener(v->{
+                dialog.dismiss();
+                if(which==0)chooseStyle();else if(which==1)configureTilt.run();
+                else if(which==2)configureFrameLimit.run();else if(which==3)saveNamedLayout();else loadNamedLayout();
+            });
+            form.addView(item);
+        }
+        dialog.setOnDismissListener(d->layouts.edit().putFloat("opacity",opacity).apply());
+        dialog.show();
     }
     private void chooseStyle() {
         String[] ids={"classic","xbox","playstation"};
