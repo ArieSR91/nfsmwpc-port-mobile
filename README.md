@@ -1,7 +1,7 @@
-# Need for Speed Most Wanted (2005, PC) — Recompiled
+# Need for Speed Most Wanted (2005, PC) — Port
 
 
-### Android downloads / Descargas Android
+### Android downloads
 
 | APK | 64 Bit |
 |---|---|
