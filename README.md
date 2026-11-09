@@ -5,7 +5,7 @@
 
 | APK | 64 Bit |
 |---|---|
-| [Download](https://github.com/ArieSR91/nfsmwpc-port-mobile/releases/download/v0.1.13/app-debug.apk) | v0.1.13 |
+| [Download](https://github.com/ArieSR91/nfsmwpc-port-mobile/releases/download/v0.1.13-fix/app-debug.apk) | v0.1.13 fix |
 
 Android 10+ and Vulkan 1.1+. Both APKs use the same package and signing key;
 install the architecture supported by your device. Original game data is required.
